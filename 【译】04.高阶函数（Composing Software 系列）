@@ -1,0 +1,134 @@
+
+【作者】：Eric Elliott
+
+【出处】：Medium
+
+【原文链接】：https://medium.com/javascript-scene/higher-order-functions-composing-software-5365cf2cbe99
+
+注意：此文是Composing Software系列专题文章([现在出书了][1])，该系列旨在帮助大家从零开始用 JavaScript ES6+ 学习函数式编程和基于组件的软件开发技术（compositional software techniques）。敬请关注，精彩不断。
+
+下一节的链接[戳这里][2]
+
+---
+
+**高阶函数**是指以函数形式作为参数的函数，或者返回值是函数形式的函数。高阶函数是相对于一阶函数而言：一阶函数不会以函数本身作为参数，也不支持以函数形式作为函数的返回值。
+
+上一节里我们看到过`.map()`和`.filter()`的例子，这两个函数当时都是以某个函数作为实参。没错，它俩都是高阶函数。
+
+咱们先一起看一个一阶函数的例子，通过`censor`函数剔除掉由4个字母构成的单词：
+
+```
+const censor = words => {
+  const filtered = [];
+  for (let i = 0, { length } = words; i < length; i++) {
+    const word = words[i];
+    if (word.length !== 4) filtered.push(word);
+  }
+  return filtered;
+};
+censor(['oops', 'gasp', 'shout', 'sun']);
+// [ 'shout', 'sun' ]
+```
+
+或者，我们想要挑选出以`S`为首的单词时，设计一个`startsWithS`函数：
+
+```
+const startsWithS = words => {
+  const filtered = [];
+  for (let i = 0, { length } = words; i < length; i++) {
+    const word = words[i];
+    if (word.startsWith('s')) filtered.push(word);
+  }
+  return filtered;
+};
+startsWithS(['oops', 'gasp', 'shout', 'sun']);
+// [ 'shout', 'sun' ]
+```
+
+你可能已经发现了，这里有很多重复的代码。每当代码中出现的重复部分时，我们是可以尝试去简化为一个通用的解决方案的。这两个函数真的有很多相似点对不对，都是在遍历一个数组， 然后根据一定的条件进行筛选。
+
+这种迭代（iteration）和筛选（filtering）好像总是在等着被翻牌子，被复用，或者被用于构建其他各种相似功能的函数。根据给定条件筛选数据是很常见的需求。
+
+幸运的是，JavaScript 中的函数是一等公民。啥意思？和数字、字符串、对象一样，函数：
+
+- 可以被当做标识符/变量赋值
+- 可以被当做是对象的属性值
+- 可以被当做是实参
+- 可以充当其他函数的返回值
+
+也就是说，我们可以把函数看作是和其他基本数据一样的数据单元，于是简化代码这件事情就变得更简单啦。比如：我们可以创建一个函数来处理遍历和累加返回值的动作，通过传入一个函数来实现，这个传入的参数负责处理过程中的那些小的差异。我们管介个函数叫做 the reducer： 
+
+```
+const reduce = (reducer, initial, arr) => {
+  // shared stuff
+  let acc = initial;
+  for (let i = 0, { length } = arr; i < length; i++) {
+    // unique stuff in reducer() call
+    acc = reducer(acc, arr[i]);
+  // more shared stuff
+  }
+  return acc;
+};
+reduce((acc, curr) => acc + curr, 0, [1,2,3]); // 6
+```
+
+`reduce()`的实现依赖三个参数：一个`reducer`函数、一个为累加器(accumulator) 而准备的初始值（initial value）、以及被迭代的数组。对数组中的每个元素都调用一次`reducer`函数。给它传两个参数：累加器的值和当前数组元素，拿到的返回值再赋给累加器。以此类推，当数组里所有元素都过完一遍以后我们拿到最终的累计值。
+
+在上面的例子中，我们调用`reduce`，并把它传给函数`(acc, curr) => acc + curr`，此时参数为累加器(the accumulator)和数组中的某元素，并拿到一个累加值。接下来，我们传入初始值（initial value），也就是 0，以及我们想迭代的对象。
+
+当我们解决了抽象化迭代的过程和累加值的问题，再来看下函数`filter()`。
+
+
+```
+const filter = (
+  fn, arr
+) => reduce((acc, curr) => fn(curr) ?
+  acc.concat([curr]) :
+  acc, [], arr
+);
+```
+
+在`filter()`函数中，除了作为参数被传进来的函数`fn()`，其他内容都是共享(shared)的。此时，实参`fn()`就是一个布尔值函数（a predicate）。Predicate 的意思是：返回值是布尔值的函数。
+
+我们给函数`f()`传入当前值（curr），如果`fn(curr)`拿到的返回值是`true`，我们会把`curr`值并入当前累计数组(accumulator array)。否则，我们只返回当前累加器的值。
+
+现在我们用 `filter()`版本的`censor()`函数来剔除四个字母的单词：
+
+
+```
+const censor = words => filter(
+  word => word.length !== 4,
+  words
+);
+```
+
+瞧，把非关键代码剔除掉以后，`censor()`函数变得多轻。  
+
+同样的，函数`startsWithS()`也可以简化:
+
+```
+const startsWithS = words => filter(
+  word => word.startsWith('s'),
+  words
+);
+```
+
+如果你一直在关注这一块儿，你会发现 JavaScript 已经在变得越来越简化了。我们有很多`Array.prototype()`方法，`.reduce()`，`.filter()`，`.map()`等还不错的途径（来实现类似的简化过程）。
+
+高阶函数也是一个常用的办法来简化对不同数据类型的处理。比如,`.filter()`不一定只是用来处理字符串构成的数组。用`.filter()`处理数字也是一样地简单，因为我们可以传一个知道该怎么应付不同数据类型的函数进去。还记得`highpass()`的例子吗？
+```
+
+const highpass = cutoff => n => n >= cutoff;
+const gt3 = highpass(3);
+[1, 2, 3, 4].filter(gt3); // [3, 4];
+```
+
+换句话说，我们可以用高阶函数使得一个函数具有多态的性质。正如你所看到的那样，高阶函数比一阶函数更具复用性和多样性。总的来说，实际操作过程中经常是高阶函数和简单的一阶函数混着用。
+
+---
+
+[下一讲：Reduce][3]
+
+[1]: https://leanpub.com/composingsoftware
+[2]: https://medium.com/javascript-scene/reduce-composing-software-fe22f0c39a1d
+[3]: https://medium.com/javascript-scene/reduce-composing-software-fe22f0c39a1d
