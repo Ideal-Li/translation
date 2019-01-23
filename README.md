@@ -6,4 +6,4 @@
 > He works anywhere he wants with the most beautiful woman in the world.
 
 
-另一个有趣的人在尝试把他的文章翻译成尽可能让大多数人看的懂的中文。
+另一个有趣的人在尝试把他和其他技术型选手的文章翻译成尽可能让大多数人看的懂的中文。
